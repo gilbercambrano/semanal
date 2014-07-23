@@ -16,7 +16,7 @@
 	include_once("../library/NominaFrenteSemanal.php");
 	include_once("../library/CompaniaEmpleado.php");
 	include_once("../library/EmpleadoPuesto.php");
-	include_once("../library/DeduccionPrestamoSemanal.php");
+	include_once("../library/DeduccionSemanal.php");
 	include_once("../library/BonificacionSemanal.php");
 	include_once("../library/Database.php");
 
@@ -33,7 +33,7 @@
 	$nomina_frente_semanal 			= new NominaFrenteSemanal();
 	$compania_empleado 				= new CompaniaEmpleado();
 	$empleado_puesto 				= new EmpleadoPuesto();
-	$deduccion_prestamo_semanal		= new DeduccionPrestamoSemanal();
+	$deduccion_semanal		= new DeduccionSemanal();
 	$bonificacion_semanal 			= new BonificacionSemanal();
 	$database 						= new Database();
 
@@ -143,11 +143,49 @@
 							$bon_temp = new BonificacionSemanal();
 							$empleado_nuevo = false ;
 							$arreglo_nominas = array();
+							$deduccion = array() ;
 							foreach ($_POST as $key => $value) {
 
+
+								$informacion = explode("_", $key);
+								if($informacion[0]=="buscar"){
+									$informacion[0] = $_GET['buscar'] ; 
+									$informacion[1] = 'buscar' ; 
+								}
 								$pos_ = strpos($key, '_');
 								$tam = strlen($key);
 								$cadena = substr($key, $pos_ +1 );
+								/*print_r($informacion) ;
+								echo "<br><br>"; */
+								$empleado_nomina_frente_semanal->loadByEmpleado($informacion[0]);
+
+
+
+								/**
+								DEDUCCIONES
+								*/
+											
+											//echo $cadena['deduccion'] . "gilber" ;
+											if($cadena=='deduccion' && $value>0){
+												$arreglo_deduccion['descripcion'] = 'Deduccion RH' ;
+												$arreglo_deduccion['estatus'] = 'PENDIENTE' ;
+												$arreglo_deduccion['monto'] = $value ;
+												$arreglo_deduccion['id_empleado_nomina_frente_semanal'] = $empleado_nomina_frente_semanal->getId();
+											//	echo $cadena . " ----> " . $value . "-------$key-----" ."<br>"  ;
+												if($deduccion_semanal->loadByEmpleadoNomina($empleado_nomina_frente_semanal->getId())==1){
+													$deduccion_semanal->update($arreglo_deduccion);
+												}
+												else{
+													$deduccion_semanal->insert($arreglo_deduccion);
+												}
+											}
+
+
+								/**
+								DEDUCCIONES
+								*/
+
+
 
 								if($cadena == 'empleado' ) {
 									$monto_total = 0 ;
@@ -473,15 +511,18 @@
 													</td>
 													<td align="center">
 														<input type="hidden" name="buscar" value=<?php echo "'".$_GET['buscar']."'"; ?> >
-														<input style="text-align:right; color:#000000;" disabled size="5" type="text" name=<?php echo $empleado->getId()."_deduccion";?> value=
+														<input style="text-align:right; color:#000000;" size="5" type="text" name=<?php echo $empleado->getId()."_deduccion";?> value=
 															<?php 
-																$deducciones = $deduccion_prestamo_semanal->loadByEmpleadoNomina($empleado_nomina_frente_semanal->getId());
-																$monto_deducciones = 0 ;
-																foreach ($deducciones as $ded) {
-																	$monto_deducciones += $ded['monto'] ;
-																}
-																echo number_format($monto_deducciones, 2) ;
-														 	?> >
+																 if( $deduccion_semanal->loadByEmpleadoNomina($empleado_nomina_frente_semanal->getId())==1){
+																 	$monto_deducciones = $deduccion_semanal->getMonto();
+																 }
+																 else{
+																 	$monto_deducciones = 0 ;
+																 }
+																
+																
+																echo number_format( $monto_deducciones,2) ;
+														 	?> > 
 													</td>
 													<td>
 														<input value=

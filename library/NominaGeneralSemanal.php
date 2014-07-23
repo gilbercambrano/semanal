@@ -54,6 +54,15 @@
 			return mysql_insert_id();
 		}
 
+		function insertNuevo(/*$usuario*/){
+			/*$this->loadByActivo();
+			$this->saldarNomina($this->id); */
+			$usuario = 1 ;
+			$sql = "insert into nominas_generales_semanales values( 0, now(), 0, 'ACTIVO', now(), now(), now(), $usuario, '' )" ;
+			mysql_query($sql, $this->conexion );
+			return mysql_insert_id();
+		}
+
 		function saldarNomina( $nomina ){
 			$sql = "update $this->tabla set estatus='PAGADA' where id_nomina_general_semanal = $nomina ";
 			mysql_query($sql, $this->conexion);

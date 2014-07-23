@@ -10,6 +10,7 @@
 		private $monto		;
 		private $empleado	;
 		private $nomina_frente_semanal ;
+		private $numero_dias ;
 
 
 		private $tabla ;
@@ -53,8 +54,28 @@
 				where id_bonificacion_semanal =".$bonificacion['id_bonificacion_semanal']."
 				";
 			mysql_query($sql, $this->conexion);
-			return $sql ;
+			//return $sql ;
 
+		}
+
+
+		function loadByEmpleadoNomina($empleado_nomina){
+			$indicador = 0 ;
+			$sql = "select * from $this->tabla where id_empleado_nomina_frente_semanal=$empleado_nomina and estatus='ACTIVO' ";
+			$resultado = mysql_query($sql, $this->conexion);
+			if(mysql_num_rows($resultado)>0){
+				$indicador = 1 ;
+				$row = mysql_fetch_assoc($resultado);
+				$this->id = $row['id_bonificacion_semanal'];
+				$this->monto = $row['monto'];
+				$this->fecha = $row['fecha'] ;
+				$this->estatus = $row['estatus'];
+				$this->descripcion = $row['descripcion'];
+				$this->numero_dias = $row['numero_dias'] ;
+				$this->nomina_semanal_empleado = $row['id_empleado_nomina_frente_semanal'];
+			}
+			//echo $sql ;
+			return $indicador ;
 		}
 
 		function updateEstatus($bonificacion, $estatus){

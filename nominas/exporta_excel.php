@@ -90,6 +90,10 @@
 							Espere un momento por favor
 							</strong>
 							</center>
+
+							<strong>
+							Calculando Frente de Trabajo:
+							</strong>
 						</div>
 
 						<!-- FIN ANIMACION DE LOADING -->
@@ -138,6 +142,7 @@ $objPHPExcel = $objReader->load("templates/30template.xls");
 	include_once("../library/BonificacionSemanal.php");
 	include_once("../library/GeneraNominaSemanal.php");
 	include_once("../library/Puesto.php");
+	include_once("../library/DeduccionSemanal.php");
 
 	$xls 							= new ExcelWriter();
 	$empleado 						= new Empleado();
@@ -151,6 +156,7 @@ $objPHPExcel = $objReader->load("templates/30template.xls");
 	$cuenta_bancaria 				= new CuentaBancaria();
 	$bonificacion_semanal 			= new BonificacionSemanal();
 	$puesto 						= new Puesto();
+	$deduccion_semanal 				= new DeduccionSemanal();
 
 	$frente=array();
 
@@ -158,161 +164,144 @@ $objPHPExcel = $objReader->load("templates/30template.xls");
 
 	setlocale(LC_MONETARY, 'en_US');
 
+
+
 	$nomina_general_semanal->loadByActivo();
 
 	$nominas_frentes = $nomina_frente_semanal->loadByNominaGeneralSemanal($nomina_general_semanal->getId());
 
 
 
-	/*  
-	Inicio de calculo de montos totales
-	*/
 
-	$bonos = array();
 
-		foreach ($nominas_frentes as $value) {
-		$monto_nomina = 0 ;
-		$empleados_nominas = $empleado_nomina_frente_semanal ->loadByNominaFrenteSemanal($value['id_nomina_frente_semanal']);
-		foreach ($empleados_nominas as $item) {
-			$monto_nomina+=$item['monto'] ;
-			$bonificaciones=$bonificacion_semanal->loadByEmpleadoNominaFrente($item['id_empleado_nomina_frente_semanal']);
-			//print_r($bonificaciones);
-			//echo "<br>";
-			if(!empty($bonificaciones)){
+
+
+		/**
+		Nueva Implementación
+		*/
+
+		$monto_total_nomina_general = 0 ; 
+
+		$resumen_frentes_trabajo = array();
+
+
+
+
+
+
+
+		$row = 11;
+
+
+		foreach ($nominas_frentes as $nomina_frente) {
+
+			$nomina_frente_semanal->loadById($nomina_frente['id_nomina_frente_semanal']);
+			$frente_trabajo->loadById($nomina_frente_semanal->getFrenteTrabajo());
+
+			$impreso = 0 ;
+			$bandera_nombre_frente = 0 ;
 			
-				$monto_nomina+=$bonificaciones['monto'];
-				$empleado_nomina_frente_semanal->updateMonto($item['id_empleado_nomina_frente_semanal'], ($item['monto'] + $bonificaciones['monto'] ));
-				$bonos[] = $bonificaciones['id_bonificacion_semanal'] ;
-				//$bonificacion_semanal->updateEstatus($bonificaciones['id_bonificacion_semanal'], 'PAGADA');
-//								echo "".$item['monto']. "     " . $bonificaciones['monto']  . "<br>" ;			
-			}
-			else{
 
-			//	echo $bonificaciones['id_bonificacion_semanal'] . "<br><br>";
-			}
-		}
-
-		$nomina_frente_semanal->loadById($value['id_nomina_frente_semanal']);
-		$nomina_frente_semanal->update(array(
-											'id_nomina_frente_semanal'=>$value['id_nomina_frente_semanal'],
-											'monto'=>$monto_nomina,
-											'observaciones'=>$nomina_frente_semanal->getObservaciones(),
-											'estatus'=>$nomina_frente_semanal->getEstatus()
-											));
-	}
-
-	$nomina_general_semanal ->updateMonto($nomina_general_semanal->getId(), round($nomina_frente_semanal ->getTotalNominasFrentes($nomina_general_semanal->getId()), $_SESSION['id_usuario']));
-
-
-	/*
-	Fin de calculo de montos totales
-	*/
-
-
-
-
-$row = 11;
-
-$nominas_frentes = $nomina_frente_semanal->loadByNominaGeneralSemanal($nomina_general_semanal->getId());
-
-foreach($nominas_frentes as  $dataRow) {
-
-	if($dataRow['monto'] > 0 ) {  //inicio de if que filtra por frentes en 0
-
-	$nominas_empleados = $empleado_nomina_frente_semanal->loadByNominaFrenteSemanal($dataRow['id_nomina_frente_semanal']);
-
-	$frente_trabajo ->loadById($dataRow['id_frente_trabajo']);
-		
-	$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-	$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $frente_trabajo->getNombre());
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setName('Arial');
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setSize(18);
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_RED);
-	$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'R'.$row);
-
-	$frente[]= array('frente'=>$frente_trabajo->getNombre(),
-		'monto'=>$dataRow['monto']);
-	$row++;
-		foreach ($nominas_empleados as $key ) {
-			 if($key['monto']>0){  //comentario generado por pruebas
-			 	$categoria = '' ;
-			$empleado->loadById($key['id_empleado']);
 			
-					$compania_empleado->loadByEmpleado($key['id_empleado']); 
-					$compania->loadById($compania_empleado->getCompania());
+			$monto_total_nomina_frente = 0 ;
+			
+			$empleados_nominas = $empleado_nomina_frente_semanal ->loadByNominaFrenteSemanal($nomina_frente['id_nomina_frente_semanal']);
+			
 
-					$empleado_puesto->loadByEmpleado($key['id_empleado']);
-					$puesto ->loadById($empleado_puesto->getPuesto());
-					$categoria = $puesto->getNombre();
+			foreach ($empleados_nominas as $nomina_empleado) {
+				
+				$deduccion = 0 ;
+				$bonificacion = 0 ;
+				$monto_empleado = 0 ;
+				
+				$empleado->loadById($nomina_empleado['id_empleado']);
+				$empleado_puesto->loadByEmpleado($empleado->getId());
+				$puesto->loadById($empleado_puesto->getPuesto());
 
-					if($key['lunes']==1)
-						$l='P';
-					else
-						$l='O';
+				$compania_empleado->loadByEmpleado($nomina_empleado['id_empleado']);
+				$compania->loadById($compania_empleado->getCompania());
+
+				$cuenta_bancaria->loadById($empleado->getCuentaBancaria());
+
+				if($deduccion_semanal->loadByEmpleadoNomina($nomina_empleado['id_empleado_nomina_frente_semanal'])==1){
+					$deduccion = $deduccion_semanal->getMonto();
+					$bandera_nombre_frente = 1 ;
+					$deduccion_semanal->updateEstatus($deduccion_semanal->getId(), 'PAGADA');
+				}
+
+				if($bonificacion_semanal->loadByEmpleadoNomina($nomina_empleado['id_empleado_nomina_frente_semanal'])==1){
+					$bonificacion = $bonificacion_semanal->getMonto();
+					$bandera_nombre_frente = 1 ;
+					$bonificacion_semanal->updateEstatus($bonificacion_semanal->getId(), 'PAGADA');
+				}
+
+
+				
+				if($nomina_empleado['monto']>0){
+
+					$bandera_nombre_frente = 1 ;
+
+					$monto_empleado = $nomina_empleado['monto'] ;
 					
-					if($key['martes']==1)
-						$m='P';
-					else
-						$m='O';
-
-					if($key['miercoles']==1)
-						$mi='P';
-					else
-						$mi='O';
-
-					if($key['jueves']==1)
-						$j='P';
-					else
-						$j='O';
-
-					if($key['viernes']==1)
-						$v='P';
-					else
-						$v='O';
 					
-					if($key['sabado']==1)
-						$s='P';
-					else
-						$s='O';
-					
-					if($key['domingo']==1)
-						$d='P';
-					else
-						$d='O';
+				}
+				
+				
+
+				$monto_empleado += $bonificacion ;
+				$monto_empleado = $monto_empleado - $deduccion ;
+
+				if($monto_empleado > 0 || $bonificacion > 0 || $deduccion > 0){
+
+					if($bandera_nombre_frente==1 && $impreso==0){
 
 
-					$b=$bonificacion_semanal->loadByEmpleadoNominaFrente($key['id_empleado_nomina_frente_semanal']);
-					if(!empty($b)){
-						$boni= $b['monto'];
+
+
+						$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
+						$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $frente_trabajo->getNombre());
+						$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setName('Arial');
+						$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setSize(18);
+						$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
+						$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_RED);
+						$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'R'.$row);
+
+						$row++;
+
+
+						
+
+
+
+/*
+						echo "<h2>".$frente_trabajo->getNombre()."</h2>";
+						echo "<br>"; */
+						$impreso = 1 ;
 					}
-					else{
-						$boni=0;
-					}
-					
-					$cuenta_bancaria->loadById($empleado->getCuentaBancaria());
 
-					$ctabancaria=' '.$cuenta_bancaria->getNumeroCuenta().' ';
 
-			$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
+
+
+
+					$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
 			$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $empleado->getid())
 	                              ->setCellValue('B'.$row, $empleado->getApellidoPaterno())
 								  ->setCellValue('C'.$row, $empleado->getApellidoMaterno())
 								  ->setCellValue('D'.$row, $empleado->getNombre())
 								  ->setCellValue('E'.$row, $compania->getAbreviatura())
-								  ->setCellValue('F'.$row, $categoria)
+								  ->setCellValue('F'.$row, $puesto->getNombre())
 								  ->setCellValue('G'.$row, $empleado_puesto->getSalario())
-								  ->setCellValue('H'.$row, $l)
-								  ->setCellValue('I'.$row, $m)
-								  ->setCellValue('J'.$row, $mi)
-								  ->setCellValue('K'.$row, $j)
-								  ->setCellValue('L'.$row, $v)
-								  ->setCellValue('M'.$row, $s)
-								  ->setCellValue('N'.$row, $d)
-	                              ->setCellValue('O'.$row, $boni)
-	                              ->setCellValue('P'.$row, 0)
-	                              ->setCellValue('Q'.$row, $key['monto'])
-	                              ->setCellValue('R'.$row, $ctabancaria)
+								  ->setCellValue('H'.$row, ( ( $nomina_empleado['lunes'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('I'.$row, ( ( $nomina_empleado['martes'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('J'.$row, ( ( $nomina_empleado['miercoles'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('K'.$row, ( ( $nomina_empleado['jueves'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('L'.$row, ( ( $nomina_empleado['viernes'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('M'.$row, ( ( $nomina_empleado['sabado'] == 1) ? 'P' : 'O' ) )
+								  ->setCellValue('N'.$row, ( ( $nomina_empleado['domingo'] == 1) ? 'P' : 'O' ) )
+	                              ->setCellValue('O'.$row, $bonificacion)
+	                              ->setCellValue('P'.$row, $deduccion)
+	                              ->setCellValue('Q'.$row, $monto_empleado)
+	                              ->setCellValue('R'.$row, $cuenta_bancaria->getNumeroCuenta() )
 	                              ->setCellValue('S'.$row, $cuenta_bancaria->getBanco());
 	                              //->setCellValue('S'.$row, $frente_trabajo->getNombre());
 	                              $objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setName('Arial');
@@ -324,210 +313,144 @@ foreach($nominas_frentes as  $dataRow) {
 								  $objPHPExcel->getActiveSheet()->getStyle('R'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_TEXT);
 
 	                              $row++;
-	         }                   #  comentario generado por pruebas
-		}
-		$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-		$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
-		$objPHPExcel->getActiveSheet()->setCellValue('A'.$row,'TOTAL A PAGAR EN EL FRENTE '.$frente_trabajo->getNombre() );
-		$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
-		$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'P'.$row);
-		$objPHPExcel->getActiveSheet()->setCellValue('Q'.$row, $dataRow['monto']);
-		//$objPHPExcel->getActiveSheet()->mergeCells('Q'.$row.':'.'R'.$row);
-		
-		$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
-		$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->setBold(true);
-		$objPHPExcel->getActiveSheet()->setBreak( 'A' . $row, PHPExcel_Worksheet::BREAK_ROW);
-		$row++;
-	}		//fin del if de filtrado de frentes en 0
-}  //fin foreach nominas
 
-
-$row++;
-$row++;
-$acumulador= 0;
-
-foreach ($frente as $value) {
-	$acumulador=$acumulador+$value['monto'];
-	$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-	$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $value['frente'])
-								  ->setCellValue('D'.$row, $value['monto']);
-	$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_CURRENCY_USD_SIMPLE );
-	$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'C'.$row);
-	$row++;
-}
-
-
-	$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-	$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, 'TOTAL A PAGAR EN ESTA NOMINA: ')
-								  ->setCellValue('D'.$row, $acumulador);
-	$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_CURRENCY_USD_SIMPLE );
-	$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'C'.$row);
-	$row++;
-
-	$nomina_general_semanal->loadById($nomina_general_semanal->getId());
-	$objPHPExcel->getActiveSheet()->setCellValue('D'.$row, $nomina_general_semanal->getmonto());
-	
+	                              $empleado_nomina_frente_semanal->updateMonto($nomina_empleado['id_empleado_nomina_frente_semanal'], $monto_empleado);
 
 
 
 
-// intento de imprimir los ceros:
+
+					/*echo $empleado->getNombre()." " . $empleado->getApellidoPaterno()." ".$empleado->getApellidoMaterno() ."---- " . $puesto->getNombre() . "----- " . $compania->getAbreviatura()."------- " . $empleado_puesto->getSalario(). "------". $cuenta_bancaria->getBanco() . "-------" . $cuenta_bancaria->getNumeroCuenta() ;
+					echo "<br>";
+					print_r($nomina_empleado) ;
+					echo "<br>";
+					echo $deduccion . "------" . $bonificacion ;
+
+					echo "<br><br>"; */
+
+				}
 
 
-	$row += 5 ;
-
-/**
-
-foreach($nominas_frentes as  $dataRow) {
-
-	if($dataRow['monto'] == 0 ) {  //inicio de if que filtra por frentes en 0
-
-	$nominas_empleados = $empleado_nomina_frente_semanal->loadByNominaFrenteSemanal($dataRow['id_nomina_frente_semanal']);
-
-	$frente_trabajo ->loadById($dataRow['id_frente_trabajo']);
-		
-	$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-	$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $frente_trabajo->getNombre());
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setName('Arial');
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setSize(18);
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
-	$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_RED);
-	$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'R'.$row);
-
-	$frente[]= array('frente'=>$frente_trabajo->getNombre(),
-		'monto'=>$dataRow['monto']);
-	$row++;
-		foreach ($nominas_empleados as $key ) {
-			 if($key['monto'] == 0){  //comentario generado por pruebas
-			$empleado->loadById($key['id_empleado']);
-			
-					$compania_empleado->loadByEmpleado($key['id_empleado']); 
-					$compania->loadById($compania_empleado->getCompania());
-
-					$empleado_puesto->loadByEmpleado($key['id_empleado']);
-
-					if($key['lunes']==1)
-						$l='P';
-					else
-						$l='O';
-					
-					if($key['martes']==1)
-						$m='P';
-					else
-						$m='O';
-
-					if($key['miercoles']==1)
-						$mi='P';
-					else
-						$mi='O';
-
-					if($key['jueves']==1)
-						$j='P';
-					else
-						$j='O';
-
-					if($key['viernes']==1)
-						$v='P';
-					else
-						$v='O';
-					
-					if($key['sabado']==1)
-						$s='P';
-					else
-						$s='O';
-					
-					if($key['domingo']==1)
-						$d='P';
-					else
-						$d='O';
+				$monto_total_nomina_frente += $monto_empleado ;
 
 
-					$b=$bonificacion_semanal->loadByEmpleadoNominaFrente($key['id_empleado_nomina_frente_semanal']);
-					if(!empty($b)){
-						$boni= $b['monto'];
-					}
-					else{
-						$boni=0;
-					}
-					
-					$cuenta_bancaria->loadById($empleado->getCuentaBancaria());
 
-					$ctabancaria=' '.$cuenta_bancaria->getNumeroCuenta().' ';
+				
+			}
+
+
+
+			if($monto_total_nomina_frente>0){
+
 
 			$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-			$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $empleado->getid())
-	                              ->setCellValue('B'.$row, $empleado->getApellidoPaterno())
-								  ->setCellValue('C'.$row, $empleado->getApellidoMaterno())
-								  ->setCellValue('D'.$row, $empleado->getNombre())
-								  ->setCellValue('E'.$row, $compania->getAbreviatura())
-								  ->setCellValue('F'.$row, $empleado_puesto->getSalario())
-								  ->setCellValue('G'.$row, $l)
-								  ->setCellValue('H'.$row, $m)
-								  ->setCellValue('I'.$row, $mi)
-								  ->setCellValue('J'.$row, $j)
-								  ->setCellValue('K'.$row, $v)
-								  ->setCellValue('L'.$row, $s)
-								  ->setCellValue('M'.$row, $d)
-	                              ->setCellValue('N'.$row, $boni)
-	                              ->setCellValue('O'.$row, 0)
-	                              ->setCellValue('P'.$row, $key['monto'])
-	                              ->setCellValue('Q'.$row, $ctabancaria)
-	                              ->setCellValue('R'.$row, $cuenta_bancaria->getBanco());
-	                              
-	                              $objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setName('Arial');
-								  $objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setSize(10);
-								  $objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(false);
-								  $objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->setBold(false);
-								  $objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLACK);
-								  $objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLACK);
-								  $objPHPExcel->getActiveSheet()->getStyle('Q'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_TEXT);
-								  
+			$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
+			$objPHPExcel->getActiveSheet()->setCellValue('A'.$row,'TOTAL A PAGAR EN EL FRENTE '.$frente_trabajo->getNombre() );
+			$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
+			$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'P'.$row);
+			$objPHPExcel->getActiveSheet()->setCellValue('Q'.$row, $monto_total_nomina_frente);
+			//$objPHPExcel->getActiveSheet()->mergeCells('Q'.$row.':'.'R'.$row);
+			
+			$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
+			$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->setBold(true);
+			$objPHPExcel->getActiveSheet()->setBreak( 'A' . $row, PHPExcel_Worksheet::BREAK_ROW);
+			$row++;
 
-	                             
-	                              // agregar un santo de pagina
-	                              
-	                              $row++;
-	         }                   #  comentario generado por pruebas
+			$nomina_frente_semanal->updateMonto($nomina_frente['id_nomina_frente_semanal'], $monto_total_nomina_frente);
+			//$empleado_nomina_frente_semanal->updateEstatus($nomina_empleado['id_empleado_nomina_frente_semanal'], 'PAGADA');
+
+
+
+			$resumen_frentes_trabajo[] = array("nombre"=>$frente_trabajo->getNombre(), "monto"=>$monto_total_nomina_frente);
+
+
+			$monto_total_nomina_general +=  $monto_total_nomina_frente ;
+			/*echo $monto_total_nomina_frente ;
+			echo "<br><br>"; */
 		}
+
+		} //foreach nominas_frentes	
+
+		//echo $monto_total_nomina_general ;
+
+		$row+=3 ;
+
+
+		foreach($resumen_frentes_trabajo as $fila){
+
+
+			$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
+			$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, $fila['nombre'])
+										  ->setCellValue('D'.$row, $fila['monto']);
+			$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_CURRENCY_USD_SIMPLE );
+			$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+			$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'C'.$row);
+			$row++;
+
+
+
+
+		}
+
 		$objPHPExcel->getActiveSheet()->insertNewRowBefore($row,1);
-		$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
-		$objPHPExcel->getActiveSheet()->setCellValue('A'.$row,'TOTAL A PAGAR EN EL FRENTE '.$frente_trabajo->getNombre() );
-		$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_BLUE);
-		$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'O'.$row);
-		$objPHPExcel->getActiveSheet()->setCellValue('P'.$row, $dataRow['monto']);
-		
-		$objPHPExcel->getActiveSheet()->getStyle('A'.$row)->getFont()->setBold(true);
-		$objPHPExcel->getActiveSheet()->getStyle('P'.$row)->getFont()->setBold(true);
-		$objPHPExcel->getActiveSheet()->setBreak( 'A' . $row, PHPExcel_Worksheet::BREAK_ROW);
-		$row++;
-	}		//fin del if de filtrado de frentes en 0
-}  //fin foreach nominas
-
-*/
-//fin del intento de imprimir los ceros
-
-
-$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
-$name_file = "NOMINA_SEMANAL_".date('Y-m-d H-i-s').'.xls';
-$objWriter->save("../files/nominas_semanales/".$name_file);
+		$objPHPExcel->getActiveSheet()->setCellValue('A'.$row, 'TOTAL A PAGAR EN ESTA NOMINA: ')
+								  	->setCellValue('D'.$row, $monto_total_nomina_general);
+		$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getNumberFormat()->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_CURRENCY_USD_SIMPLE );
+		$objPHPExcel->getActiveSheet()->getStyle('D'.$row)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$objPHPExcel->getActiveSheet()->mergeCells('A'.$row.':'.'C'.$row);
 
 
 
-	
-	$genera_nomina = new GeneraNominaSemanal();
 
-	
-	$genera_nomina->generaByNominaOld();
-	foreach ($bonos as $key ) {
-		$bonificacion_semanal->updateEstatus($key, 'PAGADA');
-	}
-	
-	echo "<a href=\"../files/nominas_semanales/".$name_file."\">Descargar</a>";
+
+
+
+
+		$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$name_file = "NOMINA_SEMANAL_".date('Y-m-d H-i-s').'.xls';
+		$objWriter->save("../files/nominas_semanales/".$name_file);
+
+		echo "<h2>La nómina ha sido generada correctamente, haga clic en el siguiente enlace para descargarla:</h2>";
+
+		echo "<center><h2><a href=\"../files/nominas_semanales/".$name_file."\">Descargar</a></h2></center>";
+
+
+
+		/**
+		Fin Nueva Implementación
+		*/
+
+
+		$id_nomina_general_anterior = $nomina_general_semanal->getId();
+
+		$id_nomina_general_nueva = $nomina_general_semanal->insertNuevo();
+
+
+		foreach ($nominas_frentes as $nomina_frente) {
+
+			$nomina_frente_nueva = $nomina_frente_semanal->insertNuevo($id_nomina_general_nueva, $nomina_frente['id_frente_trabajo']);
+			$empleados_nominas = $empleado_nomina_frente_semanal ->loadByNominaFrenteSemanal($nomina_frente['id_nomina_frente_semanal']);
+			
+			foreach ($empleados_nominas as $nomina_empleado) {
+				$empleado_nomina_frente_semanal->updateEstatus($nomina_empleado['id_empleado_nomina_frente_semanal'], 'PAGADA');
+				$empleado_nomina_frente_semanal->generaNominaEmpleadoTemp(array('id_empleado'=>$nomina_empleado['id_empleado'], 'id_nomina_frente_semanal'=>$nomina_frente_nueva));
+			}
+
+			$nomina_frente_semanal->updateEstatus($nomina_frente['id_nomina_frente_semanal'], 'PAGADA');
+
+
+		}
+
+		$nomina_general_semanal->saldarNomina($id_nomina_general_anterior);
+		$nomina_general_semanal->updateMonto($id_nomina_general_anterior, $monto_total_nomina_general);
+
+
+
+
 
 
 ?>
+
 
 
 

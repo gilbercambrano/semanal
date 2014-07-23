@@ -16,7 +16,7 @@
 	include_once("../library/NominaFrenteSemanal.php");
 	include_once("../library/CompaniaEmpleado.php");
 	include_once("../library/EmpleadoPuesto.php");
-	include_once("../library/DeduccionPrestamoSemanal.php");
+	include_once("../library/DeduccionSemanal.php");
 	include_once("../library/BonificacionSemanal.php");
 	include_once("../library/Database.php");
 
@@ -33,7 +33,7 @@
 	$nomina_frente_semanal 			= new NominaFrenteSemanal();
 	$compania_empleado 				= new CompaniaEmpleado();
 	$empleado_puesto 				= new EmpleadoPuesto();
-	$deduccion_prestamo_semanal		= new DeduccionPrestamoSemanal();
+	$deduccion_semanal 				= new DeduccionSemanal();
 	$bonificacion_semanal 			= new BonificacionSemanal();
 	$database 						= new Database();
 	
@@ -277,11 +277,9 @@
 													<td align="center">
 														<input disabled style="text-align:right; color:#000000;" disabled size="5" type="text" name=<?php echo $empleado->getId()."_deduccion";?> value=
 															<?php 
-																$deducciones = $deduccion_prestamo_semanal->loadByEmpleadoNomina($empleado->getId());
+																 $deduccion_semanal->loadByEmpleadoNomina($empleado->getId());
 																$monto_deducciones = 0 ;
-																foreach ($deducciones as $ded) {
-																	$monto_deducciones += $ded['monto'] ;
-																}
+																$monto_deducciones = $deduccion_semanal->getMonto();
 																echo number_format($monto_deducciones, 2) ;
 														 	?> >
 													</td>

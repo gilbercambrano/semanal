@@ -72,6 +72,17 @@
 
 		}
 
+		function updateEstatusFrente($id_nomina_frente, $estatus_){
+
+			$sql = "update $this->tabla set 
+				estatus='".$estatus_."'
+				where id_nomina_frente = ".$id_nomina_frente;
+
+				return mysql_query($sql) ;
+				//return $sql ;
+
+		}
+
 		function updateMonto($id_empleado_nomina_frente_semanal, $monto_){
 
 			$sql = "update $this->tabla set 

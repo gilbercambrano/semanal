@@ -16,7 +16,7 @@
 	include_once("../library/NominaFrenteSemanal.php");
 	include_once("../library/CompaniaEmpleado.php");
 	include_once("../library/EmpleadoPuesto.php");
-	include_once("../library/DeduccionPrestamoSemanal.php");
+	include_once("../library/DeduccionSemanal.php");
 	include_once("../library/BonificacionSemanal.php");
 	include_once("../library/NominaGeneralSemanal.php");
 
@@ -33,7 +33,7 @@
 	$nomina_frente_semanal 			= new NominaFrenteSemanal();
 	$compania_empleado 				= new CompaniaEmpleado();
 	$empleado_puesto 				= new EmpleadoPuesto();
-	$deduccion_prestamo_semanal		= new DeduccionPrestamoSemanal();
+	$deduccion_semanal				= new DeduccionSemanal();
 	$bonificacion_semanal			= new BonificacionSemanal();
 	$nomina_general_semanal			= new NominaGeneralSemanal();
 	//$emp_temp						= new Empleado();
@@ -168,12 +168,14 @@
 											<th width="30">Sáb</th>
 											<th width="30">Dom</th>
 											<th width="80">Deducciones</th>
-											<th>Bonificaciones</th>
+											<th colspan="2">Bonificaciones</th>
 											<th width="80">Monto</th>
 										</tr>
 										<?php
 										$line = 1 ;
 											foreach ($empleados_nominas as $value) {
+												if($value['monto']>0){
+												
 												$empleado->loadById($value['id_empleado']);
 												$compania_empleado->loadByEmpleado($empleado->getId());
 												$val = ($line % 2 == 0)  ? "par": "impar" ;
@@ -231,17 +233,22 @@
 
 
 													<td align="center">
-															<?php 
-																$deducciones = $deduccion_prestamo_semanal->loadByEmpleadoNomina($value['id_empleado_nomina_frente_semanal']);
-																$monto_deducciones = 0 ;
-																foreach ($deducciones as $ded) {
-																	$monto_deducciones += $ded['monto'] ;
-																}
-																echo number_format($monto_deducciones, 2) ;
-														 	?>
+
+															<?php
+
+																 if( $deduccion_semanal->loadByEmpleadoNomina($value['id_empleado_nomina_frente_semanal'])==1){
+																 	$monto_deducciones = $deduccion_semanal->getMonto();
+																 }
+																 else{
+																 	$monto_deducciones = 0 ;
+																 }
+																
+																
+																echo number_format( $monto_deducciones,2) ;
+														 	?>  
 													</td>
-													<td>
-														<input value=
+													<td title="Días">
+														
 														<?php
 															$b = $bonificacion_semanal->loadByEmpleadoNominaFrente($value['id_empleado_nomina_frente_semanal']);
 															if(!empty($b))
@@ -249,28 +256,21 @@
 															else
 																echo "0.0";
 														?> 
-														type="text" 
-														size="2" 
-														title="Número de días" 
-														name=<?php echo $empleado->getId()."_bonificacion_dias";?> 
-														disabled="disabled"
-														>
+														
 
-														<input value= 
+														</td>
+														<td title="Monto">
+															<center>
 														<?php
 															$b = $bonificacion_semanal->loadByEmpleadoNominaFrente($value['id_empleado_nomina_frente_semanal']);
-															if(!empty($b))
-																echo $b['monto'] ;
-															else
-																echo "0.0";
+															$monto_bon = 0.0 ;
+															if(!empty($b)){
+																$monto_bon = $b['monto'] ;
+															}
+															echo number_format( $monto_bon, 2 ) ;
 														?> 
-														style="text-align:right;" 
-														type="text" 
-														size="5" 
-														title="Monto a bonificar" 
-														name=<?php echo $empleado->getId()."_bonificacion_monto";?> 
-														disabled="disabled"
-														>
+														</center>
+														
 
 														<input type="hidden" value=<?php echo $empleado_puesto->getSalario(); ?> name=<?php echo $empleado->getId()."_salario";?> id=<?php echo "salario_".$empleado->getId();?>  >
 														
@@ -280,12 +280,13 @@
 
 
 													<td align="center">
-														<?php echo $value['monto'] ;?>
+														<?php echo number_format(  (($value['monto'] + $monto_bon) - $monto_deducciones), 2) ;?>
 													</td>
 
 												</tr>
 												<?php
 												$line ++ ;
+												}
 											}
 										//}
 										?>

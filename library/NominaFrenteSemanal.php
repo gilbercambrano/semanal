@@ -31,6 +31,19 @@
 			return mysql_query($sql, $this->conexion);
 		}
 
+		function insertNuevo($nomina_general_semanal, $frente_trabajo){
+			$sql = "insert into $this->tabla values(
+				0,
+				0,
+				'',
+				".$nomina_general_semanal.",
+				".$frente_trabajo.",
+				'ACTIVO'
+				)";
+			 mysql_query($sql, $this->conexion);
+			 return mysql_insert_id();
+		}
+
 		function update($nomina_frente){
 			$sql = "update $this->tabla set 
 			monto=".$nomina_frente['monto'].", 
@@ -40,6 +53,31 @@
 			where id_nomina_frente_semanal=".$nomina_frente['id_nomina_frente_semanal']."
 			";
 			mysql_query($sql, $this->conexion);
+		}
+
+
+		function updateEstatus($id_nomina_frente_semanal, $estatus_){
+
+			$sql = "update $this->tabla set 
+				estatus='".$estatus_."'
+				where id_nomina_frente_semanal = ".$id_nomina_frente_semanal;
+
+				return mysql_query($sql) ;
+				//return $sql ;
+
+		}
+
+
+
+		function updateMonto($id_nomina_frente_semanal, $monto){
+
+			$sql = "update $this->tabla set 
+				monto='".$monto."'
+				where id_nomina_frente_semanal = ".$id_nomina_frente_semanal;
+
+				return mysql_query($sql) ;
+				//return $sql ;
+
 		}
 
 		function loadByFrente($frente){
