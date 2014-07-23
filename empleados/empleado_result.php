@@ -166,21 +166,21 @@
 								*/
 											
 											//echo $cadena['deduccion'] . "gilber" ;
-											if($cadena=='deduccion' && $value>0){
+											if($cadena=='deduccion' ){
+
 												$arreglo_deduccion['descripcion'] = 'Deduccion RH' ;
 												$arreglo_deduccion['estatus'] = 'PENDIENTE' ;
 												$arreglo_deduccion['monto'] = $value ;
 												$arreglo_deduccion['id_empleado_nomina_frente_semanal'] = $empleado_nomina_frente_semanal->getId();
-											//	echo $cadena . " ----> " . $value . "-------$key-----" ."<br>"  ;
+
 												if($deduccion_semanal->loadByEmpleadoNomina($empleado_nomina_frente_semanal->getId())==1){
 													$deduccion_semanal->update($arreglo_deduccion);
 												}
-												else{
+
+												else if ($value>0){
 													$deduccion_semanal->insert($arreglo_deduccion);
 												}
 											}
-
-
 								/**
 								DEDUCCIONES
 								*/
