@@ -157,7 +157,12 @@
 								$cadena = substr($key, $pos_ +1 );
 								/*print_r($informacion) ;
 								echo "<br><br>"; */
-								$empleado_nomina_frente_semanal->loadByEmpleado($informacion[0]);
+
+								if( is_numeric($informacion[0]) ){
+									$empleado_nomina_frente_semanal->loadByEmpleado($informacion[0]);
+								}
+								
+								
 
 
 
